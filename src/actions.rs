@@ -2,6 +2,7 @@ use std::str::from_utf8;
 
 use crate::todo_list::TodoList;
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum Action {
     Add(String),
     SetDone(u32),

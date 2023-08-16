@@ -1,18 +1,18 @@
 use std::{collections::HashMap, str::from_utf8};
 
-#[derive(Clone, Default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 
 pub struct TodoList {
     pub todo_list: HashMap<u32, Todo>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Todo {
     pub title: String,
     pub status: Status,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 
 pub enum Status {
     Open,

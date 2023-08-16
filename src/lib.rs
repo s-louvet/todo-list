@@ -124,4 +124,45 @@ fn execute<Host: Runtime>(host: &mut Host, todo_list: TodoList) -> TodoList {
     }
 }
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{
+        actions::{action_transition, Action},
+        todo_list::{Status, Todo, TodoList},
+    };
+    #[test]
+    fn add_todo() {
+        let user_message: [u8; 12] = [00, 87, 97, 115, 104, 32, 100, 105, 115, 104, 101, 115];
+        let action = Action::try_from(user_message.to_vec());
+
+        let expected_message = "Wash dishes".to_string();
+        assert_eq!(action, Ok(Action::Add(expected_message.clone())));
+
+        let todo_list = TodoList::default();
+        let new_todo_list = action_transition(todo_list, action.unwrap());
+
+        let expected_todo_list: HashMap<u32, Todo> = HashMap::from([(
+            0,
+            Todo {
+                title: expected_message,
+                status: Status::Open,
+            },
+        )]);
+
+        assert_eq!(
+            new_todo_list,
+            TodoList {
+                todo_list: expected_todo_list
+            }
+        );
+    }
+
+    #[test]
+    fn wrong_msg_test() {
+        let user_message: [u8; 11] = [87, 97, 115, 104, 32, 100, 105, 115, 104, 101, 115];
+        let action = Action::try_from(user_message.to_vec());
+
+        assert_eq!(action, Err("Invalid action".to_string()));
+    }
+}
