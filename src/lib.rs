@@ -27,7 +27,7 @@ pub fn entry<Host: Runtime>(host: &mut Host) {
 fn load_next_id<Host: Runtime>(host: &mut Host, todo_list_next_id_path: &OwnedPath) -> Id {
     //Read next id to know if we will have to write new todo in storage
 
-    host.store_read(todo_list_next_id_path, 0, 8)
+    host.store_read_all(todo_list_next_id_path)
         .map_err(|_| "Runtime error".to_string())
         .and_then(Id::try_from)
         .unwrap_or_default()
@@ -44,7 +44,7 @@ fn load_todo_list<Host: Runtime>(host: &mut Host, next_id: &Id) -> TodoList {
                 .try_into()
                 .unwrap();
             let todo = host
-                .store_read(&todo_path, 0, 8)
+                .store_read_all(&todo_path)
                 .map_err(|_| "Runtime error".to_string())
                 .and_then(Todo::try_from)
                 .unwrap();
@@ -64,7 +64,7 @@ fn save_todo_list<Host: Runtime>(
     //If there is new todo to the original list
     if new_todo_list.todo_list.len() > old_todo_list.todo_list.len() {
         //Write the next id in the storage to know which id to add next time
-        let _ = host.store_write(todo_list_next_id_path, &((next_id.id + 1).to_be_bytes()), 0);
+        let _ = host.store_write_all(todo_list_next_id_path, &((next_id.id + 1).to_be_bytes()));
         //Write the new todo in the storage
         let todo_path: OwnedPath = format!("/todo_list/{}", next_id.id)
             .as_bytes()
@@ -72,7 +72,7 @@ fn save_todo_list<Host: Runtime>(
             .try_into()
             .unwrap();
         let todo: [u8; 8] = new_todo_list.todo_list[&next_id.id].clone().into();
-        let _ = host.store_write(&todo_path, &todo, 0);
+        let _ = host.store_write_all(&todo_path, &todo);
     }
 
     if new_todo_list.todo_list != old_todo_list.todo_list {
@@ -85,7 +85,7 @@ fn save_todo_list<Host: Runtime>(
                     .try_into()
                     .unwrap();
                 let todo: [u8; 8] = new_todo_list.todo_list[id].clone().into();
-                let _ = host.store_write(&todo_path, &todo, 0);
+                let _ = host.store_write_all(&todo_path, &todo);
             }
         }
     }
@@ -128,16 +128,24 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        actions::{action_transition, Action},
+        actions::{action_transition, Action, Title},
         todo_list::{Status, Todo, TodoList},
     };
     #[test]
     fn add_todo() {
-        let user_message: [u8; 12] = [00, 87, 97, 115, 104, 32, 100, 105, 115, 104, 101, 115];
+        let user_message: [u8; 16] = [
+            0, 0, 0, 0, 11, 87, 97, 115, 104, 32, 100, 105, 115, 104, 101, 115,
+        ];
         let action = Action::try_from(user_message.to_vec());
 
         let expected_message = "Wash dishes".to_string();
-        assert_eq!(action, Ok(Action::Add(expected_message.clone())));
+
+        assert_eq!(
+            action,
+            Ok(Action::Add(Title {
+                title: expected_message.clone()
+            }))
+        );
 
         let todo_list = TodoList::default();
         let new_todo_list = action_transition(todo_list, action.unwrap());

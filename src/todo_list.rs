@@ -1,4 +1,6 @@
-use std::{collections::HashMap, str::from_utf8};
+use std::collections::HashMap;
+
+use tezos_data_encoding::{enc::BinWriter, nom::NomReader};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 
@@ -6,13 +8,13 @@ pub struct TodoList {
     pub todo_list: HashMap<u32, Todo>,
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, NomReader, BinWriter)]
 pub struct Todo {
     pub title: String,
     pub status: Status,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, NomReader, BinWriter)]
 
 pub enum Status {
     Open,
@@ -74,33 +76,22 @@ impl TryFrom<Vec<u8>> for Todo {
     type Error = String;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        match value.as_slice() {
-            [0x01, remaining @ ..] => Ok(Todo {
-                title: from_utf8(remaining).unwrap().to_string(),
-                status: Status::Achieved,
-            }),
-            [0x02, remaining @ ..] => Ok(Todo {
-                title: from_utf8(remaining).unwrap().to_string(),
-                status: Status::Open,
-            }),
-            _ => Err("Invalid deserialization".to_string()),
+        match Todo::nom_read(&value) {
+            Ok((_, input)) => Ok(input),
+            Err(_) => Err("Invalid deserialization".to_string()),
         }
     }
 }
 
 impl From<Todo> for [u8; 8] {
     fn from(val: Todo) -> Self {
-        let title_as_bytes = val.title.as_bytes().to_vec();
-        let mut vec_of_byte = match val.status {
-            Status::Open => vec![0x02],
-            Status::Achieved => vec![0x01],
-        };
-        vec_of_byte.extend(title_as_bytes);
-        vec_of_byte.as_slice().try_into().unwrap()
+        let mut bytes = Vec::new();
+        val.bin_write(&mut bytes).ok();
+        bytes.try_into().unwrap()
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq, Debug, BinWriter, NomReader)]
 pub struct Id {
     pub id: u32,
 }
